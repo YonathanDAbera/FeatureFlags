@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: feature-flag-trials-postgres
+    environment:
+      POSTGRES_DB: featureflags
+      POSTGRES_USER: featureflags
+      POSTGRES_PASSWORD: featureflags
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
