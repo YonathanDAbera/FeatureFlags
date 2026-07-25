@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,11 +34,15 @@ public class FeatureFlagManagementController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public FeatureFlag create(@Valid @RequestBody CreateFeatureFlagRequest request) {
+	public FeatureFlag create(
+			@Valid @RequestBody CreateFeatureFlagRequest request,
+			@RequestHeader(name = "X-Actor", defaultValue = "system") String actor
+	) {
 		return featureFlagManagementService.create(
 				request.key(),
 				request.enabled(),
-				request.rolloutPercentage()
+				request.rolloutPercentage(),
+				actor
 		);
 	}
 }
