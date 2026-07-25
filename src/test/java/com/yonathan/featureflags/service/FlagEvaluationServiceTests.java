@@ -76,6 +76,11 @@ class FlagEvaluationServiceTests {
 			public boolean save(FeatureFlag flag) {
 				return false;
 			}
+
+			@Override
+			public boolean update(FeatureFlag flag) {
+				return false;
+			}
 		};
 
 		return new FlagEvaluationService(repository);

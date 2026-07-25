@@ -45,6 +45,17 @@ public class PostgresFeatureFlagRepository implements FeatureFlagRepository {
 		}
 	}
 
+	@Override
+	public boolean update(FeatureFlag flag) {
+		return springDataRepository.findById(flag.key())
+				.map(entity -> {
+					entity.update(flag.enabled(), flag.rolloutPercentage());
+					springDataRepository.saveAndFlush(entity);
+					return true;
+				})
+				.orElse(false);
+	}
+
 	private FeatureFlag toDomain(FeatureFlagEntity entity) {
 		return new FeatureFlag(entity.getKey(), entity.isEnabled(), entity.getRolloutPercentage());
 	}

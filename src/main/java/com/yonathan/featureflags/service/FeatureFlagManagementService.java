@@ -37,4 +37,22 @@ public class FeatureFlagManagementService {
 	public List<FeatureFlag> findAll() {
 		return featureFlagRepository.findAll();
 	}
+
+	@Transactional
+	public FeatureFlag update(String key, Boolean enabled, Integer rolloutPercentage, String actor) {
+		FeatureFlag previousFlag = featureFlagRepository.findByKey(key)
+				.orElseThrow(() -> new FeatureFlagNotFoundException(key));
+		FeatureFlag updatedFlag = new FeatureFlag(
+				key,
+				enabled == null ? previousFlag.enabled() : enabled,
+				rolloutPercentage == null ? previousFlag.rolloutPercentage() : rolloutPercentage
+		);
+
+		if (!featureFlagRepository.update(updatedFlag)) {
+			throw new FeatureFlagNotFoundException(key);
+		}
+
+		flagAuditService.recordUpdated(previousFlag, updatedFlag, actor);
+		return updatedFlag;
+	}
 }

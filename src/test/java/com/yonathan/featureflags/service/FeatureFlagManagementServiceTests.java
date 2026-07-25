@@ -2,6 +2,7 @@ package com.yonathan.featureflags.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -45,6 +46,22 @@ class FeatureFlagManagementServiceTests {
 		);
 	}
 
+	@Test
+	void updatesOnlyTheFieldsProvidedAndRecordsBothStates() {
+		TestFeatureFlagRepository repository = new TestFeatureFlagRepository();
+		repository.save(new FeatureFlag("beta-search", true, 10));
+		TestFlagAuditEventRepository auditRepository = new TestFlagAuditEventRepository();
+		FeatureFlagManagementService service = serviceWith(repository, auditRepository);
+
+		FeatureFlag updatedFlag = service.update("beta-search", null, 60, "yonathan");
+
+		assertTrue(updatedFlag.enabled());
+		assertEquals(60, updatedFlag.rolloutPercentage());
+		assertEquals("FLAG_UPDATED", auditRepository.events.getFirst().action());
+		assertEquals(10, auditRepository.events.getFirst().previousState().rolloutPercentage());
+		assertEquals(60, auditRepository.events.getFirst().newState().rolloutPercentage());
+	}
+
 	private FeatureFlagManagementService serviceWith(
 			FeatureFlagRepository featureFlagRepository,
 			FlagAuditEventRepository auditEventRepository
@@ -72,6 +89,16 @@ class FeatureFlagManagementServiceTests {
 		@Override
 		public boolean save(FeatureFlag flag) {
 			if (flags.containsKey(flag.key())) {
+				return false;
+			}
+
+			flags.put(flag.key(), flag);
+			return true;
+		}
+
+		@Override
+		public boolean update(FeatureFlag flag) {
+			if (!flags.containsKey(flag.key())) {
 				return false;
 			}
 

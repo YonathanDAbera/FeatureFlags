@@ -12,4 +12,6 @@ public interface FeatureFlagRepository {
 	List<FeatureFlag> findAll();
 
 	boolean save(FeatureFlag flag);
+
+	boolean update(FeatureFlag flag);
 }

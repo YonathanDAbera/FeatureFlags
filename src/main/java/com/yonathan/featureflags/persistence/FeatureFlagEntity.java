@@ -39,4 +39,9 @@ public class FeatureFlagEntity {
 	public int getRolloutPercentage() {
 		return rolloutPercentage;
 	}
+
+	public void update(boolean enabled, int rolloutPercentage) {
+		this.enabled = enabled;
+		this.rolloutPercentage = rolloutPercentage;
+	}
 }

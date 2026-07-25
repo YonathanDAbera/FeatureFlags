@@ -32,6 +32,19 @@ public class FlagAuditService {
 		flagAuditEventRepository.save(event);
 	}
 
+	public void recordUpdated(FeatureFlag previousFlag, FeatureFlag updatedFlag, String actor) {
+		FlagAuditEvent event = new FlagAuditEvent(
+				null,
+				updatedFlag.key(),
+				"FLAG_UPDATED",
+				actor,
+				Instant.now(),
+				new FlagState(previousFlag.enabled(), previousFlag.rolloutPercentage()),
+				new FlagState(updatedFlag.enabled(), updatedFlag.rolloutPercentage())
+		);
+		flagAuditEventRepository.save(event);
+	}
+
 	public List<FlagAuditEvent> findByFlagKey(String flagKey) {
 		return flagAuditEventRepository.findByFlagKey(flagKey);
 	}
