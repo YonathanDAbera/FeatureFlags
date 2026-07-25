@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import org.junit.jupiter.api.Test;
 
@@ -58,7 +60,24 @@ class FlagEvaluationServiceTests {
 		assertEquals(firstResult.reason(), secondResult.reason());
 	}
 
-	private FlagEvaluationService serviceWith(FeatureFlagRepository repository) {
+	private FlagEvaluationService serviceWith(Function<String, Optional<FeatureFlag>> finder) {
+		FeatureFlagRepository repository = new FeatureFlagRepository() {
+			@Override
+			public Optional<FeatureFlag> findByKey(String key) {
+				return finder.apply(key);
+			}
+
+			@Override
+			public List<FeatureFlag> findAll() {
+				return List.of();
+			}
+
+			@Override
+			public boolean save(FeatureFlag flag) {
+				return false;
+			}
+		};
+
 		return new FlagEvaluationService(repository);
 	}
 }
