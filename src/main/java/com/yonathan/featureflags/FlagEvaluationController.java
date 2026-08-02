@@ -7,10 +7,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.yonathan.featureflags.domain.FlagEvaluationResult;
+import com.yonathan.featureflags.domain.Environment;
 import com.yonathan.featureflags.service.FlagEvaluationService;
 
 @RestController
-@RequestMapping("/api/v1/flags")
+@RequestMapping("/api/v1/environments/{environment}/flags")
 public class FlagEvaluationController {
 
 	private final FlagEvaluationService flagEvaluationService;
@@ -21,9 +22,10 @@ public class FlagEvaluationController {
 
 	@GetMapping("/{flagKey}/evaluate")
 	public FlagEvaluationResult evaluate(
+			@PathVariable Environment environment,
 			@PathVariable String flagKey,
 			@RequestParam String userId
 	) {
-		return flagEvaluationService.evaluate(flagKey, userId);
+		return flagEvaluationService.evaluate(environment, flagKey, userId);
 	}
 }

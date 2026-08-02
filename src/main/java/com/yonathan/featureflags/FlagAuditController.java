@@ -8,10 +8,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.yonathan.featureflags.domain.FlagAuditEvent;
+import com.yonathan.featureflags.domain.Environment;
 import com.yonathan.featureflags.service.FlagAuditService;
 
 @RestController
-@RequestMapping("/api/v1/flags")
+@RequestMapping("/api/v1/environments/{environment}/flags")
 public class FlagAuditController {
 
 	private final FlagAuditService flagAuditService;
@@ -21,7 +22,7 @@ public class FlagAuditController {
 	}
 
 	@GetMapping("/{flagKey}/audit-events")
-	public List<FlagAuditEvent> findByFlagKey(@PathVariable String flagKey) {
-		return flagAuditService.findByFlagKey(flagKey);
+	public List<FlagAuditEvent> findByFlagKey(@PathVariable Environment environment, @PathVariable String flagKey) {
+		return flagAuditService.findByFlagKey(environment, flagKey);
 	}
 }

@@ -7,6 +7,7 @@ import java.security.NoSuchAlgorithmException;
 import org.springframework.stereotype.Service;
 
 import com.yonathan.featureflags.domain.FeatureFlag;
+import com.yonathan.featureflags.domain.Environment;
 import com.yonathan.featureflags.domain.FlagEvaluationResult;
 import com.yonathan.featureflags.repository.FeatureFlagRepository;
 
@@ -19,22 +20,22 @@ public class FlagEvaluationService {
 		this.featureFlagRepository = featureFlagRepository;
 	}
 
-	public FlagEvaluationResult evaluate(String flagKey, String userId) {
-		FeatureFlag flag = featureFlagRepository.findByKey(flagKey).orElse(null);
+	public FlagEvaluationResult evaluate(Environment environment, String flagKey, String userId) {
+		FeatureFlag flag = featureFlagRepository.findByEnvironmentAndKey(environment, flagKey).orElse(null);
 
 		if (flag == null) {
-			return new FlagEvaluationResult(flagKey, userId, false, 0, "FLAG_NOT_FOUND");
+			return new FlagEvaluationResult(environment, flagKey, userId, false, 0, "FLAG_NOT_FOUND");
 		}
 
 		if (!flag.enabled()) {
-			return new FlagEvaluationResult(flagKey, userId, false, flag.rolloutPercentage(), "FLAG_DISABLED");
+			return new FlagEvaluationResult(environment, flagKey, userId, false, flag.rolloutPercentage(), "FLAG_DISABLED");
 		}
 
-		boolean includedInRollout = stableBucket(flagKey, userId) < flag.rolloutPercentage();
+		boolean includedInRollout = stableBucket(environment, flagKey, userId) < flag.rolloutPercentage();
 		String reason = includedInRollout ? "ROLLOUT_INCLUDED" : "ROLLOUT_EXCLUDED";
 
 		return new FlagEvaluationResult(
-				flagKey,
+				environment, flagKey,
 				userId,
 				includedInRollout,
 				flag.rolloutPercentage(),
@@ -42,10 +43,10 @@ public class FlagEvaluationService {
 		);
 	}
 
-	private int stableBucket(String flagKey, String userId) {
+	private int stableBucket(Environment environment, String flagKey, String userId) {
 		try {
 			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			byte[] hash = digest.digest((flagKey + ":" + userId).getBytes(StandardCharsets.UTF_8));
+			byte[] hash = digest.digest((environment + ":" + flagKey + ":" + userId).getBytes(StandardCharsets.UTF_8));
 			int firstFourBytes = ((hash[0] & 0xff) << 24)
 					| ((hash[1] & 0xff) << 16)
 					| ((hash[2] & 0xff) << 8)

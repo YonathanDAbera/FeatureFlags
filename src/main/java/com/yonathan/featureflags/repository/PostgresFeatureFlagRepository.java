@@ -7,6 +7,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 
 import com.yonathan.featureflags.domain.FeatureFlag;
+import com.yonathan.featureflags.domain.Environment;
 import com.yonathan.featureflags.persistence.FeatureFlagEntity;
 import com.yonathan.featureflags.persistence.SpringDataFeatureFlagRepository;
 
@@ -20,20 +21,20 @@ public class PostgresFeatureFlagRepository implements FeatureFlagRepository {
 	}
 
 	@Override
-	public Optional<FeatureFlag> findByKey(String key) {
-		return springDataRepository.findById(key).map(this::toDomain);
+	public Optional<FeatureFlag> findByEnvironmentAndKey(Environment environment, String key) {
+		return springDataRepository.findByEnvironmentAndKey(environment, key).map(this::toDomain);
 	}
 
 	@Override
-	public List<FeatureFlag> findAll() {
-		return springDataRepository.findAllByOrderByKeyAsc().stream()
+	public List<FeatureFlag> findAllByEnvironment(Environment environment) {
+		return springDataRepository.findAllByEnvironmentOrderByKeyAsc(environment).stream()
 				.map(this::toDomain)
 				.toList();
 	}
 
 	@Override
 	public boolean save(FeatureFlag flag) {
-		if (springDataRepository.existsById(flag.key())) {
+		if (springDataRepository.findByEnvironmentAndKey(flag.environment(), flag.key()).isPresent()) {
 			return false;
 		}
 
@@ -47,7 +48,7 @@ public class PostgresFeatureFlagRepository implements FeatureFlagRepository {
 
 	@Override
 	public boolean update(FeatureFlag flag) {
-		return springDataRepository.findById(flag.key())
+		return springDataRepository.findByEnvironmentAndKey(flag.environment(), flag.key())
 				.map(entity -> {
 					entity.update(flag.enabled(), flag.rolloutPercentage());
 					springDataRepository.saveAndFlush(entity);
@@ -57,10 +58,10 @@ public class PostgresFeatureFlagRepository implements FeatureFlagRepository {
 	}
 
 	private FeatureFlag toDomain(FeatureFlagEntity entity) {
-		return new FeatureFlag(entity.getKey(), entity.isEnabled(), entity.getRolloutPercentage());
+		return new FeatureFlag(entity.getEnvironment(), entity.getKey(), entity.isEnabled(), entity.getRolloutPercentage());
 	}
 
 	private FeatureFlagEntity toEntity(FeatureFlag flag) {
-		return new FeatureFlagEntity(flag.key(), flag.enabled(), flag.rolloutPercentage());
+		return new FeatureFlagEntity(flag.environment(), flag.key(), flag.enabled(), flag.rolloutPercentage());
 	}
 }

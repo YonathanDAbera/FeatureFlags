@@ -1,6 +1,6 @@
 package com.yonathan.featureflags.domain;
 
-public record FeatureFlag(String key, boolean enabled, int rolloutPercentage) {
+public record FeatureFlag(Environment environment, String key, boolean enabled, int rolloutPercentage) {
 
 	public FeatureFlag {
 		if (key == null || key.isBlank()) {

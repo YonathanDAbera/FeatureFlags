@@ -18,10 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 import com.yonathan.featureflags.api.CreateFeatureFlagRequest;
 import com.yonathan.featureflags.api.UpdateFeatureFlagRequest;
 import com.yonathan.featureflags.domain.FeatureFlag;
+import com.yonathan.featureflags.domain.Environment;
 import com.yonathan.featureflags.service.FeatureFlagManagementService;
 
 @RestController
-@RequestMapping("/api/v1/flags")
+@RequestMapping("/api/v1/environments/{environment}/flags")
 public class FeatureFlagManagementController {
 
 	private final FeatureFlagManagementService featureFlagManagementService;
@@ -31,18 +32,19 @@ public class FeatureFlagManagementController {
 	}
 
 	@GetMapping
-	public List<FeatureFlag> findAll() {
-		return featureFlagManagementService.findAll();
+	public List<FeatureFlag> findAll(@PathVariable Environment environment) {
+		return featureFlagManagementService.findAll(environment);
 	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public FeatureFlag create(
+			@PathVariable Environment environment,
 			@Valid @RequestBody CreateFeatureFlagRequest request,
 			@RequestHeader(name = "X-Actor", defaultValue = "system") String actor
 	) {
 		return featureFlagManagementService.create(
-				request.key(),
+				environment, request.key(),
 				request.enabled(),
 				request.rolloutPercentage(),
 				actor
@@ -51,12 +53,13 @@ public class FeatureFlagManagementController {
 
 	@PatchMapping("/{flagKey}")
 	public FeatureFlag update(
+			@PathVariable Environment environment,
 			@PathVariable String flagKey,
 			@Valid @RequestBody UpdateFeatureFlagRequest request,
 			@RequestHeader(name = "X-Actor", defaultValue = "system") String actor
 	) {
 		return featureFlagManagementService.update(
-				flagKey,
+				environment, flagKey,
 				request.enabled(),
 				request.rolloutPercentage(),
 				actor

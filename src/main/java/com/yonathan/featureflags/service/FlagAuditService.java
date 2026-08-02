@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.yonathan.featureflags.domain.FeatureFlag;
 import com.yonathan.featureflags.domain.FlagAuditEvent;
 import com.yonathan.featureflags.domain.FlagState;
+import com.yonathan.featureflags.domain.Environment;
 import com.yonathan.featureflags.repository.FlagAuditEventRepository;
 
 @Service
@@ -22,6 +23,7 @@ public class FlagAuditService {
 	public void recordCreated(FeatureFlag flag, String actor) {
 		FlagAuditEvent event = new FlagAuditEvent(
 				null,
+				flag.environment(),
 				flag.key(),
 				"FLAG_CREATED",
 				actor,
@@ -35,6 +37,7 @@ public class FlagAuditService {
 	public void recordUpdated(FeatureFlag previousFlag, FeatureFlag updatedFlag, String actor) {
 		FlagAuditEvent event = new FlagAuditEvent(
 				null,
+				updatedFlag.environment(),
 				updatedFlag.key(),
 				"FLAG_UPDATED",
 				actor,
@@ -45,7 +48,7 @@ public class FlagAuditService {
 		flagAuditEventRepository.save(event);
 	}
 
-	public List<FlagAuditEvent> findByFlagKey(String flagKey) {
-		return flagAuditEventRepository.findByFlagKey(flagKey);
+	public List<FlagAuditEvent> findByFlagKey(Environment environment, String flagKey) {
+		return flagAuditEventRepository.findByEnvironmentAndFlagKey(environment, flagKey);
 	}
 }

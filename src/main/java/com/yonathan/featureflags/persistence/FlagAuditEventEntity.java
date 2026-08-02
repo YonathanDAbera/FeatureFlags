@@ -8,6 +8,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 
 @Entity
 @Table(name = "flag_audit_events")
@@ -16,6 +18,10 @@ public class FlagAuditEventEntity {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, updatable = false)
+	private com.yonathan.featureflags.domain.Environment environment;
 
 	@Column(name = "flag_key", nullable = false, updatable = false)
 	private String flagKey;
@@ -45,7 +51,7 @@ public class FlagAuditEventEntity {
 	}
 
 	public FlagAuditEventEntity(
-			String flagKey,
+			com.yonathan.featureflags.domain.Environment environment, String flagKey,
 			String action,
 			String actor,
 			Instant occurredAt,
@@ -54,7 +60,7 @@ public class FlagAuditEventEntity {
 			boolean newEnabled,
 			int newRolloutPercentage
 	) {
-		this.flagKey = flagKey;
+		this.environment = environment; this.flagKey = flagKey;
 		this.action = action;
 		this.actor = actor;
 		this.occurredAt = occurredAt;
@@ -67,6 +73,7 @@ public class FlagAuditEventEntity {
 	public Long getId() {
 		return id;
 	}
+	public com.yonathan.featureflags.domain.Environment getEnvironment() { return environment; }
 
 	public String getFlagKey() {
 		return flagKey;

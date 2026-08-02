@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import com.yonathan.featureflags.domain.FlagAuditEvent;
 import com.yonathan.featureflags.domain.FlagState;
+import com.yonathan.featureflags.domain.Environment;
 import com.yonathan.featureflags.persistence.FlagAuditEventEntity;
 import com.yonathan.featureflags.persistence.SpringDataFlagAuditEventRepository;
 
@@ -24,8 +25,8 @@ public class PostgresFlagAuditEventRepository implements FlagAuditEventRepositor
 	}
 
 	@Override
-	public List<FlagAuditEvent> findByFlagKey(String flagKey) {
-		return springDataRepository.findByFlagKeyOrderByOccurredAtDescIdDesc(flagKey).stream()
+	public List<FlagAuditEvent> findByEnvironmentAndFlagKey(Environment environment, String flagKey) {
+		return springDataRepository.findByEnvironmentAndFlagKeyOrderByOccurredAtDescIdDesc(environment, flagKey).stream()
 				.map(this::toDomain)
 				.toList();
 	}
@@ -38,6 +39,7 @@ public class PostgresFlagAuditEventRepository implements FlagAuditEventRepositor
 
 		return new FlagAuditEvent(
 				entity.getId(),
+				entity.getEnvironment(),
 				entity.getFlagKey(),
 				entity.getAction(),
 				entity.getActor(),
@@ -54,7 +56,7 @@ public class PostgresFlagAuditEventRepository implements FlagAuditEventRepositor
 				: event.previousState().rolloutPercentage();
 
 		return new FlagAuditEventEntity(
-				event.flagKey(),
+				event.environment(), event.flagKey(),
 				event.action(),
 				event.actor(),
 				event.occurredAt(),

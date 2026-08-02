@@ -4,6 +4,7 @@ import java.time.Instant;
 
 public record FlagAuditEvent(
 		Long id,
+		Environment environment,
 		String flagKey,
 		String action,
 		String actor,

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.yonathan.featureflags.domain.FeatureFlag;
+import com.yonathan.featureflags.domain.Environment;
 import com.yonathan.featureflags.repository.FeatureFlagRepository;
 
 @Service
@@ -23,8 +24,8 @@ public class FeatureFlagManagementService {
 	}
 
 	@Transactional
-	public FeatureFlag create(String key, boolean enabled, int rolloutPercentage, String actor) {
-		FeatureFlag flag = new FeatureFlag(key, enabled, rolloutPercentage);
+	public FeatureFlag create(Environment environment, String key, boolean enabled, int rolloutPercentage, String actor) {
+		FeatureFlag flag = new FeatureFlag(environment, key, enabled, rolloutPercentage);
 
 		if (!featureFlagRepository.save(flag)) {
 			throw new FeatureFlagAlreadyExistsException(key);
@@ -34,16 +35,16 @@ public class FeatureFlagManagementService {
 		return flag;
 	}
 
-	public List<FeatureFlag> findAll() {
-		return featureFlagRepository.findAll();
+	public List<FeatureFlag> findAll(Environment environment) {
+		return featureFlagRepository.findAllByEnvironment(environment);
 	}
 
 	@Transactional
-	public FeatureFlag update(String key, Boolean enabled, Integer rolloutPercentage, String actor) {
-		FeatureFlag previousFlag = featureFlagRepository.findByKey(key)
+	public FeatureFlag update(Environment environment, String key, Boolean enabled, Integer rolloutPercentage, String actor) {
+		FeatureFlag previousFlag = featureFlagRepository.findByEnvironmentAndKey(environment, key)
 				.orElseThrow(() -> new FeatureFlagNotFoundException(key));
 		FeatureFlag updatedFlag = new FeatureFlag(
-				key,
+				environment, key,
 				enabled == null ? previousFlag.enabled() : enabled,
 				rolloutPercentage == null ? previousFlag.rolloutPercentage() : rolloutPercentage
 		);
