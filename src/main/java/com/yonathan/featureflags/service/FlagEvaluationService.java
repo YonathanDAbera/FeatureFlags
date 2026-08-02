@@ -13,16 +13,19 @@ import com.yonathan.featureflags.domain.FeatureFlag;
 import com.yonathan.featureflags.domain.Environment;
 import com.yonathan.featureflags.domain.FlagEvaluationResult;
 import com.yonathan.featureflags.repository.FeatureFlagRepository;
+import com.yonathan.featureflags.repository.TargetingRuleRepository;
 
 @Service
 public class FlagEvaluationService {
 
 	private final FeatureFlagRepository featureFlagRepository;
 	private final MeterRegistry meterRegistry;
+	private final TargetingRuleRepository targetingRuleRepository;
 
-	public FlagEvaluationService(FeatureFlagRepository featureFlagRepository, MeterRegistry meterRegistry) {
+	public FlagEvaluationService(FeatureFlagRepository featureFlagRepository, MeterRegistry meterRegistry, TargetingRuleRepository targetingRuleRepository) {
 		this.featureFlagRepository = featureFlagRepository;
 		this.meterRegistry = meterRegistry;
+		this.targetingRuleRepository = targetingRuleRepository;
 	}
 
 	@Cacheable(cacheNames = "flag-evaluations", key = "#environment.name() + ':' + #flagKey + ':' + #userId")
@@ -30,22 +33,29 @@ public class FlagEvaluationService {
 		FeatureFlag flag = featureFlagRepository.findByEnvironmentAndKey(environment, flagKey).orElse(null);
 
 		if (flag == null) {
-			return record(new FlagEvaluationResult(environment, flagKey, userId, false, 0, "FLAG_NOT_FOUND"));
+			return record(new FlagEvaluationResult(environment, flagKey, userId, false, 0, "FLAG_NOT_FOUND", null, null));
 		}
 
 		if (!flag.enabled()) {
-			return record(new FlagEvaluationResult(environment, flagKey, userId, false, flag.rolloutPercentage(), "FLAG_DISABLED"));
+			return record(new FlagEvaluationResult(environment, flagKey, userId, false, flag.rolloutPercentage(), "FLAG_DISABLED", null, null));
 		}
 
-		boolean includedInRollout = stableBucket(environment, flagKey, userId) < flag.rolloutPercentage();
+		var matchedRule = targetingRuleRepository.findByEnvironmentAndFlagKey(environment, flagKey).stream()
+				.filter(rule -> rule.userId().equals(userId))
+				.findFirst();
+		if (matchedRule.isPresent()) {
+			return record(new FlagEvaluationResult(environment, flagKey, userId, true, flag.rolloutPercentage(), "TARGETING_RULE_MATCH", null, matchedRule.get().id()));
+		}
+
+		int bucket = stableBucket(environment, flagKey, userId);
+		boolean includedInRollout = bucket < flag.rolloutPercentage();
 		String reason = includedInRollout ? "ROLLOUT_INCLUDED" : "ROLLOUT_EXCLUDED";
 
 		return record(new FlagEvaluationResult(
 				environment, flagKey,
 				userId,
 				includedInRollout,
-				flag.rolloutPercentage(),
-				reason
+				flag.rolloutPercentage(), reason, bucket, null
 		));
 	}
 

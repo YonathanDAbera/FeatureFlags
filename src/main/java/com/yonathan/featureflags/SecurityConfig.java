@@ -30,6 +30,7 @@ public class SecurityConfig {
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers("/actuator/health", "/api/v1/info").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/v1/environments/*/flags").hasRole("ADMIN")
+						.requestMatchers(HttpMethod.POST, "/api/v1/environments/*/flags/*/targeting-rules").hasRole("ADMIN")
 						.requestMatchers(HttpMethod.PATCH, "/api/v1/environments/*/flags/*").hasRole("ADMIN")
 						.requestMatchers(HttpMethod.GET, "/api/v1/environments/**").hasAnyRole("ADMIN", "EVALUATOR")
 						.anyRequest().authenticated()

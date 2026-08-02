@@ -13,6 +13,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import com.yonathan.featureflags.domain.Environment;
 import com.yonathan.featureflags.domain.FeatureFlag;
 import com.yonathan.featureflags.repository.FeatureFlagRepository;
+import com.yonathan.featureflags.repository.TargetingRuleRepository;
 
 class FlagEvaluationServiceTests {
 
@@ -27,7 +28,12 @@ class FlagEvaluationServiceTests {
 			public boolean update(FeatureFlag flag) { return false; }
 		};
 
-		var result = new FlagEvaluationService(repository, new SimpleMeterRegistry())
+		TargetingRuleRepository targetingRules = new TargetingRuleRepository() {
+			public List<com.yonathan.featureflags.domain.TargetingRule> findByEnvironmentAndFlagKey(Environment environment, String key) { return List.of(); }
+			public com.yonathan.featureflags.domain.TargetingRule save(com.yonathan.featureflags.domain.TargetingRule rule) { return rule; }
+		};
+
+		var result = new FlagEvaluationService(repository, new SimpleMeterRegistry(), targetingRules)
 				.evaluate(Environment.staging, "new-checkout", "user-123");
 
 		assertTrue(result.enabled());

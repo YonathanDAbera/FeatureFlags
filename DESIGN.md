@@ -104,7 +104,7 @@ The palette separates a quiet working field from decisive blue action and sparse
 
 ## Layout
 
-Desktop uses a durable three-column workbench: a compact registry, a dominant selected-flag panel, and an evaluator panel. The workspace has a fixed dark navigation rail and a centered, responsive content frame. At medium width, evaluator moves beneath the registry and inspector; at mobile width, all panels stack and the rail contracts to its brand mark.
+Desktop uses a durable three-column workbench: a compact registry, a dominant selected-flag panel, and an evaluator panel beneath a restrained product navigation bar. At medium width, evaluator moves beneath the registry and inspector; at mobile width, all panels stack and the navigation reduces to the product mark and session control.
 
 ## Elevation & Depth
 
@@ -141,7 +141,7 @@ Controls use gently rounded 6px corners, while working panels use an 11px radius
 
 ### Navigation
 
-The navigation rail uses small labels, symbolic icons, and a pale active surface. The active route is the only bright navigation item; mobile preserves brand context while removing the long list.
+The product navigation uses compact text labels and a thin blue active underline. The active route is the only bright navigation item; mobile preserves brand context while reducing the long list.
 
 ### Decision State
 

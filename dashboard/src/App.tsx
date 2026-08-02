@@ -6,12 +6,6 @@ import { keycloak, rolesFromToken, startSession } from './auth'
 
 const environments: Environment[] = ['development', 'staging', 'production']
 
-const navItems = [
-  ['⌘', 'Workspace', 'workspace'],
-  ['⚑', 'Flag registry', 'registry'],
-  ['◉', 'Evaluator', 'evaluator'],
-]
-
 function App() {
   const [sessionState, setSessionState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [signedIn, setSignedIn] = useState(false)
@@ -20,6 +14,8 @@ function App() {
   const [selectedKey, setSelectedKey] = useState('')
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null)
+  const [evaluationAt, setEvaluationAt] = useState<Date | null>(null)
+  const [showContext, setShowContext] = useState(false)
   const [userId, setUserId] = useState('yonathan')
   const [rolloutDraft, setRolloutDraft] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -108,6 +104,7 @@ function App() {
     try {
       const result = await flagApi.evaluate(environment, selectedFlag.key, userId.trim(), await token())
       setEvaluation(result)
+      setEvaluationAt(new Date())
       setMessage('Evaluation complete.')
     } catch (error) {
       setApiStatus('issue')
@@ -159,113 +156,95 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
-      <div className="app-shell" inert={showCreate ? true : undefined} aria-hidden={showCreate || undefined}>
-      <aside className="sidebar">
-        <div className="brand"><span>FF</span><strong>FeatureFlag</strong></div>
-        <nav>
-          {navItems.map(([icon, label, target]) => (
-            <button key={target} className={target === 'workspace' ? 'nav-item nav-item--active' : 'nav-item'} onClick={() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth' })}>
-              <span>{icon}</span>{label}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar__footer">
-          <span className={apiStatus === 'connected' ? 'live-dot' : 'live-dot live-dot--error'} /> {apiStatus === 'connected' ? 'API connected' : 'API issue'}
-          <p>{apiStatus === 'connected' ? 'JWT session active' : 'Retrying on next request'}</p>
-        </div>
-      </aside>
-
-      <main className="workspace" id="workspace">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">Operator workspace</p>
-            <h1>Ship with a clear signal.</h1>
-          </div>
-          <div className="topbar__actions">
-            <label className="environment-picker">Environment
-              <select value={environment} onChange={(event) => { setEnvironment(event.target.value as Environment); setEvaluation(null) }}>
-                {environments.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-            </label>
+    <div className="product-shell">
+      <div className="product-shell__content" inert={showCreate ? true : undefined} aria-hidden={showCreate || undefined}>
+        <header className="global-nav">
+          <a className="wordmark" href="#workspace"><span>FF</span>FeatureFlagTrials</a>
+          <nav aria-label="Product sections">
+            <button className="global-nav__active" onClick={() => document.getElementById('registry')?.scrollIntoView({ behavior: 'smooth' })}>Flags</button>
+            <button onClick={() => document.getElementById('evaluator')?.scrollIntoView({ behavior: 'smooth' })}>Evaluate</button>
+            <button onClick={() => document.getElementById('audit')?.scrollIntoView({ behavior: 'smooth' })}>Audit</button>
+          </nav>
+          <div className="global-nav__right">
+            <span className={apiStatus === 'connected' ? 'connection connection--up' : 'connection'}>{apiStatus === 'connected' ? 'System ready' : 'API issue'}</span>
+            <span className="global-icon" title="API documentation"><Icon name="book" /></span>
+            <span className="global-icon global-icon--notice" title="No new notifications"><Icon name="bell" /></span>
+            <span className="global-icon" title="FeatureFlagTrials help"><Icon name="help" /></span>
             <button className="avatar" title="Sign out" onClick={() => keycloak.logout({ redirectUri: window.location.origin })}>{actor.slice(0, 1).toUpperCase()}</button>
           </div>
         </header>
 
-        <div className="status-line" aria-live="polite">
-          <span className="role-badge">{canManage ? 'ADMIN' : 'EVALUATOR'}</span>
-          <span>{message || `${flags.length} flags in ${environment}`}</span>
-          {busy && <span className="saving">Working…</span>}
-        </div>
-
-        <section className="operator-grid">
-          <section className="panel registry" id="registry">
-            <div className="panel__header">
-              <div><p className="eyebrow">Registry</p><h2>Feature flags</h2></div>
-              {canManage && <button className="button button--quiet" onClick={() => setShowCreate(true)}>+ New flag</button>}
-            </div>
-            <div className="search-line"><span>⌕</span><input aria-label="Search flags" placeholder="Filter flags" value={filterQuery} onChange={(event) => setFilterQuery(event.target.value)} /></div>
+        <main className="workbench" id="workspace">
+          <section className="registry" id="registry">
+            <div className="registry__header"><h1>Flag registry</h1>{canManage && <button className="button button--primary button--new" onClick={() => setShowCreate(true)}><Icon name="plus" />New flag</button>}</div>
+            <div className="registry-tools"><div className="search-line"><Icon name="search" /><input aria-label="Search flags" placeholder="Search flags…" value={filterQuery} onChange={(event) => setFilterQuery(event.target.value)} /></div><button className={filterQuery ? 'filter-button filter-button--active' : 'filter-button'} type="button" aria-label="Clear flag filter" title="Clear flag filter" onClick={() => setFilterQuery('')}><Icon name="filter" /></button></div>
+            <p className="registry__count">{flags.length} flags in {environment}</p>
             <div className="flag-list">
               {filteredFlags.map((flag) => (
                 <button key={flag.key} className={flag.key === selectedKey ? 'flag-row flag-row--selected' : 'flag-row'} onClick={() => { setSelectedKey(flag.key); setEvaluation(null) }}>
+                  <span className="flag-mark">{flag.key.slice(0, 1).toUpperCase()}</span>
+                  <span className="flag-row__copy"><strong>{flag.key}</strong><small>{flag.enabled ? 'Enabled rollout' : 'Disabled rollout'}</small></span>
                   <span className={flag.enabled ? 'flag-state flag-state--on' : 'flag-state'} />
-                  <span className="flag-row__name">{flag.key}</span>
                   <span className="flag-row__rollout">{flag.rolloutPercentage}%</span>
                 </button>
               ))}
               {!flags.length && !busy && <div className="empty">No flags in this environment yet.</div>}
               {!!flags.length && !filteredFlags.length && <div className="empty">No flags match that filter.</div>}
             </div>
+            <footer className="registry-footer">Showing {filteredFlags.length} of {flags.length} flags</footer>
           </section>
 
-          <section className="panel detail">
+          <section className="detail">
             {selectedFlag ? <>
-              <div className="panel__header">
-                <div><p className="eyebrow">Selected flag</p><h2>{selectedFlag.key}</h2></div>
+              <div className="crumbs">Flags <span>/</span> {selectedFlag.key}</div>
+              <header className="flag-hero">
+                <div><h2>{selectedFlag.key}</h2><p>Controlled rollout in <strong>{environment}</strong></p></div>
                 <label className={selectedFlag.enabled ? 'toggle toggle--on' : 'toggle'}>
                   <input type="checkbox" checked={selectedFlag.enabled} disabled={!canManage || busy} onChange={() => void updateFlag({ enabled: !selectedFlag.enabled, rolloutPercentage: selectedFlag.rolloutPercentage })} />
                   <span /><b>{selectedFlag.enabled ? 'Enabled' : 'Disabled'}</b>
                 </label>
-              </div>
+              </header>
+              <div className="flag-meta"><span>Environment <strong>{environment}</strong></span><span>Stable user bucketing</span><span className="role-badge">{canManage ? 'ADMIN' : 'EVALUATOR'}</span></div>
 
               <div className="rollout-block">
-                <div className="section-label"><span>Rollout percentage</span><strong>{rolloutDraft}%</strong></div>
-                <input className="range" type="range" min="0" max="100" value={rolloutDraft} disabled={!canManage || busy} onChange={(event) => setRolloutDraft(Number(event.target.value))} />
-                <div className="range-scale"><span>0%</span><span>50%</span><span>100%</span></div>
-                {canManage && rolloutDraft !== selectedFlag.rolloutPercentage && <button className="button button--primary save-rollout" disabled={busy} onClick={() => void updateFlag({ enabled: selectedFlag.enabled, rolloutPercentage: rolloutDraft })}>Save rollout</button>}
+                <div className="section-title"><div><h3>Rollout</h3><p>Percentage of consistently bucketed users included in this flag.</p></div><div className="rollout-number"><strong>{rolloutDraft}</strong><span>%</span></div></div>
+                <div className="rollout-control"><button type="button" aria-label="Decrease rollout" disabled={!canManage || rolloutDraft === 0} onClick={() => setRolloutDraft((current) => Math.max(0, current - 1))}>−</button><div className="rollout-input"><input aria-label="Rollout percentage" type="number" min="0" max="100" value={rolloutDraft} disabled={!canManage || busy} onChange={(event) => setRolloutDraft(Math.max(0, Math.min(100, Number(event.target.value))))} /><span>%</span></div><button type="button" aria-label="Increase rollout" disabled={!canManage || rolloutDraft === 100} onClick={() => setRolloutDraft((current) => Math.min(100, current + 1))}>+</button></div>
+                <div className="rollout-rail"><span style={{ width: `${rolloutDraft}%` }} /></div>
+                <div className="rollout-footer"><span>{rolloutDraft}% of eligible users</span>{canManage && rolloutDraft !== selectedFlag.rolloutPercentage && <button className="text-button" disabled={busy} onClick={() => void updateFlag({ enabled: selectedFlag.enabled, rolloutPercentage: rolloutDraft })}>Save rollout</button>}</div>
               </div>
 
-              <div className="details-divider" />
-              <div className="targeting"><p className="eyebrow">Targeting</p><div><span className="rule-icon">↗</span><p><strong>Deterministic rollout</strong><br />Users are consistently bucketed by flag key and user ID.</p></div></div>
-              <div className="audit"><div className="section-label"><span>Recent activity</span><button className="text-button" onClick={() => void loadAudit()}>Refresh</button></div>
+              <div className="decision-model"><div><h3>Decision model</h3><p>Every evaluation uses the same deterministic calculation.</p></div><div className="model-steps"><span><b>1</b> Flag key</span><span><b>2</b> User ID</span><span><b>3</b> Rollout decision</span></div></div>
+              <div className="audit" id="audit"><div className="audit__header"><div><h3>Audit timeline</h3><p>Configuration history for this flag.</p></div><button className="text-button" onClick={() => void loadAudit()}>Refresh</button></div>
                 {auditEvents.slice(0, 4).map((event) => <AuditRow event={event} key={event.id} />)}
                 {!auditEvents.length && <p className="muted">No activity recorded for this flag yet.</p>}
               </div>
             </> : <div className="empty detail-empty">Select a flag to inspect its rollout.</div>}
           </section>
 
-          <section className="panel evaluator" id="evaluator">
-            <div className="panel__header"><div><p className="eyebrow">Decision lab</p><h2>Evaluator</h2></div><span className="lab-dot" /></div>
-            <p className="evaluator__copy">Confirm exactly how a specific user will experience the selected flag.</p>
+          <section className="evaluator" id="evaluator">
+            <header className="evaluator__header"><div><h2>Evaluate</h2><p>Test the selected flag for a specific user.</p></div><button className="clear-button" type="button" onClick={() => { setEvaluation(null); setEvaluationAt(null) }}>Clear</button></header>
             <form onSubmit={evaluateFlag}>
-              <label>User identifier<input value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="e.g. yonathan" /></label>
-              <label>Environment<input value={environment} readOnly /></label>
-              <button className="button button--primary evaluator__button" disabled={!selectedFlag || busy}>Evaluate user <span>→</span></button>
+              <label>User identifier<div className="input-shell"><input value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="e.g. yonathan" /><Icon name="copy" /></div></label>
+              <label>Environment<select value={environment} onChange={(event) => { setEnvironment(event.target.value as Environment); setEvaluation(null) }}>{environments.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+              <button className="context-toggle" type="button" onClick={() => setShowContext((open) => !open)}><Icon name={showContext ? 'chevronUp' : 'chevronDown'} />Advanced context <span>{showContext ? 'Hide' : 'Show'}</span></button>
+              {showContext && <div className="advanced-context"><span><b>Flag</b>{selectedFlag?.key ?? '—'}</span><span><b>Role</b>{canManage ? 'Administrator' : 'Evaluator'}</span><span><b>Algorithm</b>Stable bucket</span></div>}
+              <button className="button button--primary evaluator__button" disabled={!selectedFlag || busy}>Evaluate user <Icon name="arrow" /></button>
             </form>
             {evaluation ? <div className={evaluation.enabled ? 'decision decision--included' : 'decision'}>
-              <div className="decision__symbol">{evaluation.enabled ? '✓' : '—'}</div>
+              <div className="decision__symbol"><Icon name={evaluation.enabled ? 'check' : 'minus'} /></div>
               <p>{evaluation.enabled ? 'Included in rollout' : 'Excluded from rollout'}</p>
-              <strong>{evaluation.enabled ? `${evaluation.rolloutPercentage}% rollout is active` : evaluation.reason.replaceAll('_', ' ').toLowerCase()}</strong>
-              <span>Evaluated for {evaluation.userId}</span>
-            </div> : <div className="decision decision--idle"><div className="decision__symbol">?</div><p>Awaiting evaluation</p><span>Choose a flag and test a user.</span></div>}
+              <strong>{evaluation.enabled ? 'This user will receive the feature.' : evaluation.reason.replaceAll('_', ' ').toLowerCase()}</strong>
+              <dl><div><dt>Rollout</dt><dd>{evaluation.rolloutPercentage}%</dd></div><div><dt>User</dt><dd>{evaluation.userId}</dd></div><div><dt>Flag</dt><dd>{evaluation.flagKey}</dd></div></dl>
+            </div> : <div className="decision decision--idle"><div className="decision__symbol"><Icon name="spark" /></div><p>Ready to evaluate</p><span>Choose a flag and test a user.</span></div>}
+            {evaluation && <section className="raw-result"><div><h3>Evaluation details</h3><Icon name="copy" /></div><pre>{JSON.stringify(evaluation, null, 2)}</pre></section>}
+            <div className="evaluation-note">{evaluationAt ? `Evaluated ${evaluationAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}` : 'JWT session active'} <span>Role: <strong>{canManage ? 'Administrator' : 'Evaluator'}</strong></span>{message && <em>{message}</em>}</div>
           </section>
-        </section>
-      </main>
+        </main>
       </div>
 
       {showCreate && <div className="modal-backdrop"><form className="modal" role="dialog" aria-modal="true" aria-labelledby="create-flag-title" onKeyDown={(event) => { if (event.key === 'Escape') setShowCreate(false) }} onSubmit={createFlag}>
         <button type="button" className="close" aria-label="Close" onClick={() => setShowCreate(false)}>×</button>
-        <p className="eyebrow">New feature flag</p><h2 id="create-flag-title">Create a controlled rollout.</h2>
+        <h2 id="create-flag-title">Create a controlled rollout.</h2>
         <label>Flag key<input value={newFlagKey} onChange={(event) => setNewFlagKey(event.target.value)} placeholder="e.g. recommender-v2" autoFocus /></label>
         <label>Initial rollout <span>{newFlagRollout}%</span><input className="range" type="range" min="0" max="100" value={newFlagRollout} onChange={(event) => setNewFlagRollout(Number(event.target.value))} /></label>
         <button className="button button--primary" disabled={busy}>Create disabled flag</button>
@@ -276,10 +255,31 @@ function App() {
 
 function AuditRow({ event }: { event: AuditEvent }) {
   const state = event.newState.enabled ? 'enabled' : 'disabled'
+  const actionLabel = event.action === 'FLAG_CREATED' ? 'Created' : event.newState.enabled ? 'Rolled out' : 'Disabled'
   return <div className="audit-row"><span className={event.newState.enabled ? 'audit-mark audit-mark--on' : 'audit-mark'} />
     <p><strong>{event.action.replace('FLAG_', '').toLowerCase()}</strong> by {event.actor}<br /><span>{state}, {event.newState.rolloutPercentage}% rollout</span></p>
+    <span className={event.newState.enabled ? 'audit-badge audit-badge--on' : 'audit-badge'}>{actionLabel}</span>
     <time>{new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(event.occurredAt))}</time>
   </div>
+}
+
+function Icon({ name }: { name: 'plus' | 'search' | 'copy' | 'arrow' | 'check' | 'minus' | 'spark' | 'book' | 'bell' | 'help' | 'filter' | 'chevronUp' | 'chevronDown' }) {
+  const paths = {
+    plus: <><path d="M12 5v14M5 12h14" /></>,
+    search: <><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></>,
+    copy: <><rect x="9" y="9" width="10" height="10" rx="2" /><path d="M15 9V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /></>,
+    arrow: <><path d="M5 12h14M13 6l6 6-6 6" /></>,
+    check: <path d="m5 12 4.5 4.5L19 7" />,
+    minus: <path d="M5 12h14" />,
+    spark: <><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z" /><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z" /></>,
+    book: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v17H6.5A2.5 2.5 0 0 0 4 22V5.5Z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17h4.5A2.5 2.5 0 0 1 20 22V5.5Z" /></>,
+    bell: <><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 22h4" /></>,
+    help: <><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.6 2.6 0 1 1 4.6 1.7c-.9 1.1-2.1 1.5-2.1 3.3M12 17h.01" /></>,
+    filter: <path d="M4 5h16l-6.2 7.1v5.2l-3.6 1.7v-6.9L4 5Z" />,
+    chevronUp: <path d="m7 14 5-5 5 5" />,
+    chevronDown: <path d="m7 10 5 5 5-5" />,
+  }
+  return <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }
 
 export default App

@@ -6,6 +6,8 @@ public record FlagEvaluationResult(
 		String userId,
 		boolean enabled,
 		int rolloutPercentage,
-		String reason
+		String reason,
+		Integer bucket,
+		Long matchedRuleId
 ) implements java.io.Serializable {
 }
