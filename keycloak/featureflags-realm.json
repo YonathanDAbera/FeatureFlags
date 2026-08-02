@@ -14,6 +14,15 @@
       "publicClient": true,
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": false
+    },
+    {
+      "clientId": "featureflags-dashboard",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://localhost:5173/*", "http://127.0.0.1:5173/*"],
+      "webOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"]
     }
   ],
   "users": [
