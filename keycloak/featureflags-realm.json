@@ -1,0 +1,43 @@
+{
+  "realm": "featureflags",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      { "name": "ADMIN" },
+      { "name": "EVALUATOR" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "featureflags-cli",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "flag-admin",
+      "enabled": true,
+      "email": "flag-admin@local.test",
+      "emailVerified": true,
+      "firstName": "Flag",
+      "lastName": "Admin",
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "admin", "temporary": false }],
+      "realmRoles": ["ADMIN"]
+    },
+    {
+      "username": "flag-evaluator",
+      "enabled": true,
+      "email": "flag-evaluator@local.test",
+      "emailVerified": true,
+      "firstName": "Flag",
+      "lastName": "Evaluator",
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "evaluator", "temporary": false }],
+      "realmRoles": ["EVALUATOR"]
+    }
+  ]
+}
