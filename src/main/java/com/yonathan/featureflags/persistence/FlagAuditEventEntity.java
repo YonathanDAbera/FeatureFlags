@@ -47,6 +47,9 @@ public class FlagAuditEventEntity {
 	@Column(name = "new_rollout_percentage", nullable = false, updatable = false)
 	private int newRolloutPercentage;
 
+	@Column(updatable = false)
+	private String details;
+
 	protected FlagAuditEventEntity() {
 	}
 
@@ -58,7 +61,8 @@ public class FlagAuditEventEntity {
 			Boolean previousEnabled,
 			Integer previousRolloutPercentage,
 			boolean newEnabled,
-			int newRolloutPercentage
+			int newRolloutPercentage,
+			String details
 	) {
 		this.environment = environment; this.flagKey = flagKey;
 		this.action = action;
@@ -68,6 +72,7 @@ public class FlagAuditEventEntity {
 		this.previousRolloutPercentage = previousRolloutPercentage;
 		this.newEnabled = newEnabled;
 		this.newRolloutPercentage = newRolloutPercentage;
+		this.details = details;
 	}
 
 	public Long getId() {
@@ -106,4 +111,5 @@ public class FlagAuditEventEntity {
 	public int getNewRolloutPercentage() {
 		return newRolloutPercentage;
 	}
+	public String getDetails() { return details; }
 }

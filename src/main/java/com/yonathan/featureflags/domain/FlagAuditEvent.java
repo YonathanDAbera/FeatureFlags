@@ -10,6 +10,7 @@ public record FlagAuditEvent(
 		String actor,
 		Instant occurredAt,
 		FlagState previousState,
-		FlagState newState
+		FlagState newState,
+		String details
 ) {
 }

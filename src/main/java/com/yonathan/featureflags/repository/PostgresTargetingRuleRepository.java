@@ -15,5 +15,10 @@ public class PostgresTargetingRuleRepository implements TargetingRuleRepository 
 		return repository.findByEnvironmentAndFlagKeyOrderByPriorityAscIdAsc(environment, flagKey).stream().map(this::toDomain).toList();
 	}
 	public TargetingRule save(TargetingRule rule) { return toDomain(repository.save(new TargetingRuleEntity(rule.environment(), rule.flagKey(), rule.userId(), rule.priority()))); }
+	public boolean delete(Long id, Environment environment, String flagKey) {
+		return repository.findByIdAndEnvironmentAndFlagKey(id, environment, flagKey)
+				.map(rule -> { repository.delete(rule); return true; })
+				.orElse(false);
+	}
 	private TargetingRule toDomain(TargetingRuleEntity entity) { return new TargetingRule(entity.getId(), entity.getEnvironment(), entity.getFlagKey(), entity.getUserId(), entity.getPriority()); }
 }

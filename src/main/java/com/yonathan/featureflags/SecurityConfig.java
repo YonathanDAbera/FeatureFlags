@@ -14,13 +14,17 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Configuration
 public class SecurityConfig {
+	private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -31,10 +35,16 @@ public class SecurityConfig {
 						.requestMatchers("/actuator/health", "/api/v1/info").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/v1/environments/*/flags").hasRole("ADMIN")
 						.requestMatchers(HttpMethod.POST, "/api/v1/environments/*/flags/*/targeting-rules").hasRole("ADMIN")
+						.requestMatchers(HttpMethod.DELETE, "/api/v1/environments/**").hasRole("ADMIN")
 						.requestMatchers(HttpMethod.PATCH, "/api/v1/environments/*/flags/*").hasRole("ADMIN")
 						.requestMatchers(HttpMethod.GET, "/api/v1/environments/**").hasAnyRole("ADMIN", "EVALUATOR")
 						.anyRequest().authenticated()
 				)
+				.exceptionHandling(exceptions -> exceptions.accessDeniedHandler((request, response, exception) -> {
+					var authentication = SecurityContextHolder.getContext().getAuthentication();
+					log.warn("Denied {} {} for authorities {}", request.getMethod(), request.getRequestURI(), authentication == null ? "none" : authentication.getAuthorities());
+					response.sendError(403, "Administrator role required for this action");
+				}))
 				.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
 		return http.build();
 	}
@@ -43,7 +53,7 @@ public class SecurityConfig {
 	CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
 		configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:5173"));
-		configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "OPTIONS"));
+		configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
 		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Actor", "X-Request-Id"));
 		configuration.setExposedHeaders(List.of("X-Request-Id"));
 

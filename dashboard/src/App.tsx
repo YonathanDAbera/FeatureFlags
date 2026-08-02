@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
-import { flagApi, type AuditEvent, type Environment, type Evaluation, type FeatureFlag } from './api'
+import { flagApi, type AuditEvent, type Environment, type Evaluation, type FeatureFlag, type TargetingRule } from './api'
 import { keycloak, rolesFromToken, startSession } from './auth'
 
 const environments: Environment[] = ['development', 'staging', 'production']
+type DashboardView = 'flags' | 'evaluate' | 'audit'
+
+function viewFromHash(): DashboardView {
+  const view = window.location.hash.replace('#/', '')
+  return view === 'evaluate' || view === 'audit' ? view : 'flags'
+}
 
 function App() {
   const [sessionState, setSessionState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -13,6 +19,8 @@ function App() {
   const [flags, setFlags] = useState<FeatureFlag[]>([])
   const [selectedKey, setSelectedKey] = useState('')
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
+  const [targetingRules, setTargetingRules] = useState<TargetingRule[]>([])
+  const [ruleUserId, setRuleUserId] = useState('')
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null)
   const [evaluationAt, setEvaluationAt] = useState<Date | null>(null)
   const [showContext, setShowContext] = useState(false)
@@ -25,6 +33,8 @@ function App() {
   const [newFlagRollout, setNewFlagRollout] = useState(0)
   const [filterQuery, setFilterQuery] = useState('')
   const [apiStatus, setApiStatus] = useState<'connected' | 'issue'>('connected')
+  const [activeView, setActiveView] = useState<DashboardView>(viewFromHash)
+  const [showAllAudit, setShowAllAudit] = useState(false)
 
   const roles = useMemo(() => rolesFromToken(), [signedIn])
   const canManage = roles.includes('ADMIN')
@@ -40,6 +50,17 @@ function App() {
       })
       .catch(() => setSessionState('error'))
   }, [])
+
+  useEffect(() => {
+    const syncRoute = () => setActiveView(viewFromHash())
+    window.addEventListener('hashchange', syncRoute)
+    if (!window.location.hash) window.location.hash = '/flags'
+    return () => window.removeEventListener('hashchange', syncRoute)
+  }, [])
+
+  function navigate(view: DashboardView) {
+    window.location.hash = `/${view}`
+  }
 
   const token = useCallback(async () => {
     await keycloak.updateToken(30)
@@ -76,8 +97,19 @@ function App() {
     }
   }, [environment, selectedKey, signedIn, token])
 
+  const loadRules = useCallback(async () => {
+    if (!signedIn || !selectedKey) return
+    try {
+      setTargetingRules(await flagApi.rules(environment, selectedKey, await token()))
+    } catch (error) {
+      setApiStatus('issue')
+      setMessage(error instanceof Error ? error.message : 'Could not load targeting rules.')
+    }
+  }, [environment, selectedKey, signedIn, token])
+
   useEffect(() => { void loadFlags() }, [loadFlags])
   useEffect(() => { void loadAudit() }, [loadAudit])
+  useEffect(() => { void loadRules() }, [loadRules])
   useEffect(() => { if (selectedFlag) setRolloutDraft(selectedFlag.rolloutPercentage) }, [selectedFlag])
 
   async function updateFlag(change: Pick<FeatureFlag, 'enabled' | 'rolloutPercentage'>) {
@@ -136,6 +168,38 @@ function App() {
     }
   }
 
+  async function addTargetingRule(event: FormEvent) {
+    event.preventDefault()
+    if (!selectedFlag || !ruleUserId.trim() || !canManage) return
+    setBusy(true)
+    try {
+      const rule = await flagApi.addRule(environment, selectedFlag.key, { userId: ruleUserId.trim(), priority: targetingRules.length }, await token(), actor)
+      setTargetingRules((current) => [...current, rule])
+      setRuleUserId('')
+      setMessage(`Added an inclusion rule for ${rule.userId}.`)
+    } catch (error) {
+      setApiStatus('issue')
+      setMessage(error instanceof Error ? error.message : 'Could not add the targeting rule.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function removeTargetingRule(rule: TargetingRule) {
+    if (!selectedFlag || !canManage) return
+    setBusy(true)
+    try {
+      await flagApi.removeRule(environment, selectedFlag.key, rule.id, await token(), actor)
+      setTargetingRules((current) => current.filter((currentRule) => currentRule.id !== rule.id))
+      setMessage(`Removed the rule for ${rule.userId}.`)
+    } catch (error) {
+      setApiStatus('issue')
+      setMessage(error instanceof Error ? error.message : 'Could not remove the targeting rule.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (sessionState === 'loading') return <div className="loading-screen">Starting the operator workspace…</div>
 
   if (sessionState === 'error') {
@@ -161,9 +225,9 @@ function App() {
         <header className="global-nav">
           <a className="wordmark" href="#workspace"><span>FF</span>FeatureFlagTrials</a>
           <nav aria-label="Product sections">
-            <button className="global-nav__active" onClick={() => document.getElementById('registry')?.scrollIntoView({ behavior: 'smooth' })}>Flags</button>
-            <button onClick={() => document.getElementById('evaluator')?.scrollIntoView({ behavior: 'smooth' })}>Evaluate</button>
-            <button onClick={() => document.getElementById('audit')?.scrollIntoView({ behavior: 'smooth' })}>Audit</button>
+            <button className={activeView === 'flags' ? 'global-nav__active' : ''} onClick={() => navigate('flags')}>Flags</button>
+            <button className={activeView === 'evaluate' ? 'global-nav__active' : ''} onClick={() => navigate('evaluate')}>Evaluate</button>
+            <button className={activeView === 'audit' ? 'global-nav__active' : ''} onClick={() => navigate('audit')}>Audit</button>
           </nav>
           <div className="global-nav__right">
             <span className={apiStatus === 'connected' ? 'connection connection--up' : 'connection'}>{apiStatus === 'connected' ? 'System ready' : 'API issue'}</span>
@@ -174,7 +238,7 @@ function App() {
           </div>
         </header>
 
-        <main className="workbench" id="workspace">
+        <main className={`workbench workbench--${activeView}`} id="workspace">
           <section className="registry" id="registry">
             <div className="registry__header"><h1>Flag registry</h1>{canManage && <button className="button button--primary button--new" onClick={() => setShowCreate(true)}><Icon name="plus" />New flag</button>}</div>
             <div className="registry-tools"><div className="search-line"><Icon name="search" /><input aria-label="Search flags" placeholder="Search flags…" value={filterQuery} onChange={(event) => setFilterQuery(event.target.value)} /></div><button className={filterQuery ? 'filter-button filter-button--active' : 'filter-button'} type="button" aria-label="Clear flag filter" title="Clear flag filter" onClick={() => setFilterQuery('')}><Icon name="filter" /></button></div>
@@ -213,10 +277,14 @@ function App() {
                 <div className="rollout-footer"><span>{rolloutDraft}% of eligible users</span>{canManage && rolloutDraft !== selectedFlag.rolloutPercentage && <button className="text-button" disabled={busy} onClick={() => void updateFlag({ enabled: selectedFlag.enabled, rolloutPercentage: rolloutDraft })}>Save rollout</button>}</div>
               </div>
 
-              <div className="decision-model"><div><h3>Decision model</h3><p>Every evaluation uses the same deterministic calculation.</p></div><div className="model-steps"><span><b>1</b> Flag key</span><span><b>2</b> User ID</span><span><b>3</b> Rollout decision</span></div></div>
+              <section className="targeting-rules"><div className="targeting-rules__header"><div><h3>Targeting rules</h3><p>Matching users are included before percentage rollout.</p></div><span>{targetingRules.length} active</span></div>
+                {targetingRules.length ? <div className="rule-list">{targetingRules.map((rule, index) => <div className="rule-row" key={rule.id}><span className="rule-order">{index + 1}</span><span><strong>User ID is</strong><small>{rule.userId}</small></span><b>Include</b>{canManage && <button className="remove-rule" type="button" aria-label={`Remove rule for ${rule.userId}`} title="Remove targeted user" disabled={busy} onClick={() => void removeTargetingRule(rule)}><Icon name="trash" /></button>}</div>)}</div> : <p className="rules-empty">No user targeting rules. Evaluations use the rollout percentage.</p>}
+                {canManage && <form className="add-rule" onSubmit={addTargetingRule}><input value={ruleUserId} onChange={(event) => setRuleUserId(event.target.value)} placeholder="User ID to include" aria-label="User ID to include" /><button className="text-button" disabled={busy || !ruleUserId.trim()}><Icon name="plus" />Add rule</button></form>}
+              </section>
               <div className="audit" id="audit"><div className="audit__header"><div><h3>Audit timeline</h3><p>Configuration history for this flag.</p></div><button className="text-button" onClick={() => void loadAudit()}>Refresh</button></div>
-                {auditEvents.slice(0, 4).map((event) => <AuditRow event={event} key={event.id} />)}
+                {(activeView === 'audit' || showAllAudit ? auditEvents : auditEvents.slice(0, 4)).map((event) => <AuditRow event={event} key={event.id} />)}
                 {!auditEvents.length && <p className="muted">No activity recorded for this flag yet.</p>}
+                {activeView !== 'audit' && auditEvents.length > 4 && <button className="show-audit" type="button" onClick={() => setShowAllAudit((showing) => !showing)}>{showAllAudit ? 'Show recent activity' : `Show all ${auditEvents.length} events`}</button>}
               </div>
             </> : <div className="empty detail-empty">Select a flag to inspect its rollout.</div>}
           </section>
@@ -234,7 +302,7 @@ function App() {
               <div className="decision__symbol"><Icon name={evaluation.enabled ? 'check' : 'minus'} /></div>
               <p>{evaluation.enabled ? 'Included in rollout' : 'Excluded from rollout'}</p>
               <strong>{evaluation.enabled ? 'This user will receive the feature.' : evaluation.reason.replaceAll('_', ' ').toLowerCase()}</strong>
-              <dl><div><dt>Rollout</dt><dd>{evaluation.rolloutPercentage}%</dd></div><div><dt>User</dt><dd>{evaluation.userId}</dd></div><div><dt>Flag</dt><dd>{evaluation.flagKey}</dd></div></dl>
+              <dl><div><dt>{evaluation.matchedRuleId ? 'Matched rule' : 'Rollout'}</dt><dd>{evaluation.matchedRuleId ? `#${evaluation.matchedRuleId}` : `${evaluation.rolloutPercentage}%`}</dd></div><div><dt>{evaluation.bucket === null ? 'Decision' : 'Bucket'}</dt><dd>{evaluation.bucket === null ? 'Rule match' : `${evaluation.bucket} / 100`}</dd></div><div><dt>User</dt><dd>{evaluation.userId}</dd></div></dl>
             </div> : <div className="decision decision--idle"><div className="decision__symbol"><Icon name="spark" /></div><p>Ready to evaluate</p><span>Choose a flag and test a user.</span></div>}
             {evaluation && <section className="raw-result"><div><h3>Evaluation details</h3><Icon name="copy" /></div><pre>{JSON.stringify(evaluation, null, 2)}</pre></section>}
             <div className="evaluation-note">{evaluationAt ? `Evaluated ${evaluationAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}` : 'JWT session active'} <span>Role: <strong>{canManage ? 'Administrator' : 'Evaluator'}</strong></span>{message && <em>{message}</em>}</div>
@@ -255,15 +323,16 @@ function App() {
 
 function AuditRow({ event }: { event: AuditEvent }) {
   const state = event.newState.enabled ? 'enabled' : 'disabled'
-  const actionLabel = event.action === 'FLAG_CREATED' ? 'Created' : event.newState.enabled ? 'Rolled out' : 'Disabled'
+  const actionLabel = event.action === 'FLAG_CREATED' ? 'Created' : event.action === 'TARGETING_RULE_ADDED' ? 'Rule added' : event.action === 'TARGETING_RULE_REMOVED' ? 'Rule removed' : event.newState.enabled ? 'Rolled out' : 'Disabled'
+  const detail = event.details?.replace('userId=', 'targeted user: ') ?? `${state}, ${event.newState.rolloutPercentage}% rollout`
   return <div className="audit-row"><span className={event.newState.enabled ? 'audit-mark audit-mark--on' : 'audit-mark'} />
-    <p><strong>{event.action.replace('FLAG_', '').toLowerCase()}</strong> by {event.actor}<br /><span>{state}, {event.newState.rolloutPercentage}% rollout</span></p>
+    <p><strong>{actionLabel.toLowerCase()}</strong> by {event.actor}<br /><span>{detail}</span></p>
     <span className={event.newState.enabled ? 'audit-badge audit-badge--on' : 'audit-badge'}>{actionLabel}</span>
     <time>{new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(event.occurredAt))}</time>
   </div>
 }
 
-function Icon({ name }: { name: 'plus' | 'search' | 'copy' | 'arrow' | 'check' | 'minus' | 'spark' | 'book' | 'bell' | 'help' | 'filter' | 'chevronUp' | 'chevronDown' }) {
+function Icon({ name }: { name: 'plus' | 'search' | 'copy' | 'arrow' | 'check' | 'minus' | 'spark' | 'book' | 'bell' | 'help' | 'filter' | 'chevronUp' | 'chevronDown' | 'trash' }) {
   const paths = {
     plus: <><path d="M12 5v14M5 12h14" /></>,
     search: <><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></>,
@@ -278,6 +347,7 @@ function Icon({ name }: { name: 'plus' | 'search' | 'copy' | 'arrow' | 'check' |
     filter: <path d="M4 5h16l-6.2 7.1v5.2l-3.6 1.7v-6.9L4 5Z" />,
     chevronUp: <path d="m7 14 5-5 5 5" />,
     chevronDown: <path d="m7 10 5 5 5-5" />,
+    trash: <><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></>,
   }
   return <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }

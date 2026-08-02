@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.yonathan.featureflags.service.FeatureFlagAlreadyExistsException;
 import com.yonathan.featureflags.service.FeatureFlagNotFoundException;
+import com.yonathan.featureflags.service.TargetingRuleNotFoundException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -21,6 +22,12 @@ public class ApiExceptionHandler {
 	@ExceptionHandler(FeatureFlagNotFoundException.class)
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	public ProblemDetail handleFeatureFlagNotFound(FeatureFlagNotFoundException exception) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+	}
+
+	@ExceptionHandler(TargetingRuleNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ProblemDetail handleTargetingRuleNotFound(TargetingRuleNotFoundException exception) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
 	}
 }

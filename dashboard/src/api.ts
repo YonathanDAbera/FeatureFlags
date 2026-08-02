@@ -14,6 +14,16 @@ export type Evaluation = {
   enabled: boolean
   rolloutPercentage: number
   reason: string
+  bucket: number | null
+  matchedRuleId: number | null
+}
+
+export type TargetingRule = {
+  id: number
+  environment: Environment
+  flagKey: string
+  userId: string
+  priority: number
 }
 
 export type AuditEvent = {
@@ -25,6 +35,7 @@ export type AuditEvent = {
   occurredAt: string
   previousState: { enabled: boolean; rolloutPercentage: number } | null
   newState: { enabled: boolean; rolloutPercentage: number }
+  details: string | null
 }
 
 type RequestOptions = RequestInit & { actor?: string }
@@ -45,6 +56,10 @@ export async function request<T>(path: string, token: string, options: RequestOp
     throw new Error(detail || `Request failed (${response.status})`)
   }
 
+  if (response.status === 204) {
+    return undefined as T
+  }
+
   return response.json() as Promise<T>
 }
 
@@ -63,4 +78,12 @@ export const flagApi = {
     request<FeatureFlag>(`/environments/${environment}/flags`, token, {
       method: 'POST', body: JSON.stringify(body), actor,
     }),
+  rules: (environment: Environment, flagKey: string, token: string) =>
+    request<TargetingRule[]>(`/environments/${environment}/flags/${flagKey}/targeting-rules`, token),
+  addRule: (environment: Environment, flagKey: string, body: Pick<TargetingRule, 'userId' | 'priority'>, token: string, actor: string) =>
+    request<TargetingRule>(`/environments/${environment}/flags/${flagKey}/targeting-rules`, token, {
+      method: 'POST', body: JSON.stringify(body), actor,
+    }),
+  removeRule: (environment: Environment, flagKey: string, ruleId: number, token: string, actor: string) =>
+    request<void>(`/environments/${environment}/flags/${flagKey}/targeting-rules/${ruleId}`, token, { method: 'DELETE', actor }),
 }

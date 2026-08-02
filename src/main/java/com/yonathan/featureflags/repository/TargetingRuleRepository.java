@@ -7,4 +7,5 @@ import com.yonathan.featureflags.domain.TargetingRule;
 public interface TargetingRuleRepository {
 	List<TargetingRule> findByEnvironmentAndFlagKey(Environment environment, String flagKey);
 	TargetingRule save(TargetingRule rule);
+	boolean delete(Long id, Environment environment, String flagKey);
 }

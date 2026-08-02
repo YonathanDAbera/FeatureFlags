@@ -31,6 +31,7 @@ class FlagEvaluationServiceTests {
 		TargetingRuleRepository targetingRules = new TargetingRuleRepository() {
 			public List<com.yonathan.featureflags.domain.TargetingRule> findByEnvironmentAndFlagKey(Environment environment, String key) { return List.of(); }
 			public com.yonathan.featureflags.domain.TargetingRule save(com.yonathan.featureflags.domain.TargetingRule rule) { return rule; }
+			public boolean delete(Long id, Environment environment, String key) { return false; }
 		};
 
 		var result = new FlagEvaluationService(repository, new SimpleMeterRegistry(), targetingRules)

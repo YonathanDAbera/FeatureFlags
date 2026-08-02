@@ -45,7 +45,8 @@ public class PostgresFlagAuditEventRepository implements FlagAuditEventRepositor
 				entity.getActor(),
 				entity.getOccurredAt(),
 				previousState,
-				newState
+				newState,
+				entity.getDetails()
 		);
 	}
 
@@ -63,7 +64,8 @@ public class PostgresFlagAuditEventRepository implements FlagAuditEventRepositor
 				previousEnabled,
 				previousRolloutPercentage,
 				event.newState().enabled(),
-				event.newState().rolloutPercentage()
+				event.newState().rolloutPercentage(),
+				event.details()
 		);
 	}
 }

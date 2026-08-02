@@ -29,7 +29,8 @@ public class FlagAuditService {
 				actor,
 				Instant.now(),
 				null,
-				new FlagState(flag.enabled(), flag.rolloutPercentage())
+				new FlagState(flag.enabled(), flag.rolloutPercentage()),
+				null
 		);
 		flagAuditEventRepository.save(event);
 	}
@@ -43,9 +44,19 @@ public class FlagAuditService {
 				actor,
 				Instant.now(),
 				new FlagState(previousFlag.enabled(), previousFlag.rolloutPercentage()),
-				new FlagState(updatedFlag.enabled(), updatedFlag.rolloutPercentage())
+				new FlagState(updatedFlag.enabled(), updatedFlag.rolloutPercentage()),
+				null
 		);
 		flagAuditEventRepository.save(event);
+	}
+
+	public void recordTargetingRuleChange(FeatureFlag flag, String action, String userId, String actor) {
+		flagAuditEventRepository.save(new FlagAuditEvent(
+				null, flag.environment(), flag.key(), action, actor, Instant.now(),
+				new FlagState(flag.enabled(), flag.rolloutPercentage()),
+				new FlagState(flag.enabled(), flag.rolloutPercentage()),
+				"userId=" + userId
+		));
 	}
 
 	public List<FlagAuditEvent> findByFlagKey(Environment environment, String flagKey) {
