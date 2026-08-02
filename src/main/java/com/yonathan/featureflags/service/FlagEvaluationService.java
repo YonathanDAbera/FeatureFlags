@@ -4,7 +4,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+
+import io.micrometer.core.instrument.MeterRegistry;
 
 import com.yonathan.featureflags.domain.FeatureFlag;
 import com.yonathan.featureflags.domain.Environment;
@@ -15,32 +18,44 @@ import com.yonathan.featureflags.repository.FeatureFlagRepository;
 public class FlagEvaluationService {
 
 	private final FeatureFlagRepository featureFlagRepository;
+	private final MeterRegistry meterRegistry;
 
-	public FlagEvaluationService(FeatureFlagRepository featureFlagRepository) {
+	public FlagEvaluationService(FeatureFlagRepository featureFlagRepository, MeterRegistry meterRegistry) {
 		this.featureFlagRepository = featureFlagRepository;
+		this.meterRegistry = meterRegistry;
 	}
 
+	@Cacheable(cacheNames = "flag-evaluations", key = "#environment.name() + ':' + #flagKey + ':' + #userId")
 	public FlagEvaluationResult evaluate(Environment environment, String flagKey, String userId) {
 		FeatureFlag flag = featureFlagRepository.findByEnvironmentAndKey(environment, flagKey).orElse(null);
 
 		if (flag == null) {
-			return new FlagEvaluationResult(environment, flagKey, userId, false, 0, "FLAG_NOT_FOUND");
+			return record(new FlagEvaluationResult(environment, flagKey, userId, false, 0, "FLAG_NOT_FOUND"));
 		}
 
 		if (!flag.enabled()) {
-			return new FlagEvaluationResult(environment, flagKey, userId, false, flag.rolloutPercentage(), "FLAG_DISABLED");
+			return record(new FlagEvaluationResult(environment, flagKey, userId, false, flag.rolloutPercentage(), "FLAG_DISABLED"));
 		}
 
 		boolean includedInRollout = stableBucket(environment, flagKey, userId) < flag.rolloutPercentage();
 		String reason = includedInRollout ? "ROLLOUT_INCLUDED" : "ROLLOUT_EXCLUDED";
 
-		return new FlagEvaluationResult(
+		return record(new FlagEvaluationResult(
 				environment, flagKey,
 				userId,
 				includedInRollout,
 				flag.rolloutPercentage(),
 				reason
-		);
+		));
+	}
+
+	private FlagEvaluationResult record(FlagEvaluationResult result) {
+		meterRegistry.counter(
+				"featureflags.evaluations",
+				"environment", result.environment().name(),
+				"decision", result.reason()
+		).increment();
+		return result;
 	}
 
 	private int stableBucket(Environment environment, String flagKey, String userId) {

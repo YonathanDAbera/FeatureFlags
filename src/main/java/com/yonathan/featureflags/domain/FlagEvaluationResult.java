@@ -7,5 +7,5 @@ public record FlagEvaluationResult(
 		boolean enabled,
 		int rolloutPercentage,
 		String reason
-) {
+) implements java.io.Serializable {
 }

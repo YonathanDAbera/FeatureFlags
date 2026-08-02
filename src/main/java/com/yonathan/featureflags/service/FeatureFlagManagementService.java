@@ -2,6 +2,7 @@ package com.yonathan.featureflags.service;
 
 import java.util.List;
 
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ public class FeatureFlagManagementService {
 	}
 
 	@Transactional
+	@CacheEvict(cacheNames = "flag-evaluations", allEntries = true)
 	public FeatureFlag create(Environment environment, String key, boolean enabled, int rolloutPercentage, String actor) {
 		FeatureFlag flag = new FeatureFlag(environment, key, enabled, rolloutPercentage);
 
@@ -40,6 +42,7 @@ public class FeatureFlagManagementService {
 	}
 
 	@Transactional
+	@CacheEvict(cacheNames = "flag-evaluations", allEntries = true)
 	public FeatureFlag update(Environment environment, String key, Boolean enabled, Integer rolloutPercentage, String actor) {
 		FeatureFlag previousFlag = featureFlagRepository.findByEnvironmentAndKey(environment, key)
 				.orElseThrow(() -> new FeatureFlagNotFoundException(key));

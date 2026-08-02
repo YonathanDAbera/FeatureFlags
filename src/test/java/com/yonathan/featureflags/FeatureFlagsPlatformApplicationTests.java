@@ -6,10 +6,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.security.oauth2.server.resource.autoconfigure.servlet.OAuth2ResourceServerAutoConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(ApiInfoController.class)
+@WebMvcTest(value = ApiInfoController.class, excludeAutoConfiguration = OAuth2ResourceServerAutoConfiguration.class)
 class FeatureFlagsPlatformApplicationTests {
 
 	@Autowired

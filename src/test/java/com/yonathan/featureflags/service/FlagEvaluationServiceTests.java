@@ -8,6 +8,8 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 import com.yonathan.featureflags.domain.Environment;
 import com.yonathan.featureflags.domain.FeatureFlag;
 import com.yonathan.featureflags.repository.FeatureFlagRepository;
@@ -25,7 +27,8 @@ class FlagEvaluationServiceTests {
 			public boolean update(FeatureFlag flag) { return false; }
 		};
 
-		var result = new FlagEvaluationService(repository).evaluate(Environment.staging, "new-checkout", "user-123");
+		var result = new FlagEvaluationService(repository, new SimpleMeterRegistry())
+				.evaluate(Environment.staging, "new-checkout", "user-123");
 
 		assertTrue(result.enabled());
 		assertEquals(Environment.staging, result.environment());

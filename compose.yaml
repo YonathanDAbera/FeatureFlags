@@ -23,5 +23,11 @@ services:
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
 
+  redis:
+    image: redis:7-alpine
+    container_name: feature-flag-trials-redis
+    ports:
+      - "6379:6379"
+
 volumes:
   postgres-data:
